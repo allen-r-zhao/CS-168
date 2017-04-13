@@ -80,7 +80,49 @@ def jaccSubroutine(article1, article2):
         return (float(num)/den)   # Casts num into a float to make the result a float
     else:
         return 0.0
-        
+
+
+def L2Subroutine(article1, article2):
+    set1 = main[main[:,0] == article1, 1:3]  # Set of article1 rows; cuts redundant first column
+    set2 = main[main[:,0] == article2, 1:3]  # Set of article2 rows; cuts redundant first column
+    diffTot = 0.0
+    for i in range(len(set1[:,0])): #Compares all words in article1 with appropriate word in article2, if present
+        freq1 = set1[i, 1]
+        freq2 = set2[set2[:,0] == set1[i,0],1]
+        diffTot += (freq1 - freq2)**2
+        set2[i, 2] = 1 #indicates in set2 that this word has already been compared
+    
+    for i in range(len(set2[:, 0])): #iterates over all words in article2 that are not in article1
+        if (set2[i, 2] != 1):
+            diffTot += set2[i, 1] ** 2
+                   
+    return (diffTot ** (0.5)) * -1.0 #returns negation of sqrt of diffTotal
+       
+def cosineSubroutine(article1, article2):
+    num = 0.0
+    den1 = 0.0 
+    den2 = 0.0 
+    set1 = main[main[:,0] == article1, 1:3]  # Set of article1 rows; cuts redundant first column
+    set2 = main[main[:,0] == article2, 1:3]  # Set of article2 rows; cuts redundant first column
+    #Compares all words in article1 with appropriate word in article2
+    #Note that unline for L2, for cosine whenever a word is present in only one of two articles 
+    #this does not affect the similarity measure and can therefore be ignored
+    for i in range(len(set1[:,0])):
+        freq1 =  set1[i, 1]
+        freq2 = set2[set2[:,0] == set1[i,0], 1]
+        if not freq2:
+            freq2 = 0
+        else:
+            freq2 = freq2[0]
+        num += freq1 * freq2
+        den1 += freq1**2
+        den2 += freq2**2
+    
+    if ((den1 == 0.0) | (den2 == 0.0) | (num == 0.0)):
+        return 0
+    else:
+        return (num / (den1 * den2))
+ 
 # Function that calls jaccSubroutine many times for each possible pair of articles in groups
 def jaccMaster():
     # Iterate over all pairs of articles between groups
@@ -97,6 +139,10 @@ def jaccMaster():
     np.divide(dataJacc,divArr)
     makeHeatMap(dataJacc, groups, 'Blues', 'jaccMap.png')
 
+def L2Master():
+    print 'placeholder'
+
+
 def cosineMaster():
     cnt = 0
     for i in range(1000):
@@ -104,7 +150,7 @@ def cosineMaster():
             temp = cosineSubroutine(i,j)
             dataCos[int(labels[i])-1, int(labels[j])-1] += temp
             cnt += 1
-    np.divide(dataCos,2500.0)
+    np.divide(dataCos, (50.0 ** 3))
     makeHeatMap(dataCos, groups, 'Blues', 'cosMap.png')
 
 # Returns the category number of the article with the cosine similarity from the input article
@@ -151,4 +197,5 @@ dataL2 = np.zeros(shape=(20,20))   # Where the data for L2 heatmap will go
 dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
 divArr = np.full((20,20),2500.)
 
-jaccMaster()
+#jaccMaster()
+cosineMaster()
