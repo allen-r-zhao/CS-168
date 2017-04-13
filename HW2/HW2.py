@@ -96,7 +96,43 @@ def jaccMaster():
                 cnt = 0
     np.divide(dataJacc,divArr)
     makeHeatMap(dataJacc, groups, 'Blues', 'jaccMap.png')
-    
+
+def cosineMaster():
+    cnt = 0
+    for i in range(1000):
+        for j in range(i,1000):
+            temp = cosineSubroutine(i,j)
+            dataCos[int(labels[i])-1, int(labels[j])-1] += temp
+            cnt += 1
+    np.divide(dataCos,2500.0)
+    makeHeatMap(dataCos, groups, 'Blues', 'cosMap.png')
+
+# Returns the category number of the article with the cosine similarity from the input article
+# Input: article number
+def cosineNN(article):
+    curMax = cosineSubroutine(article, 1)
+    curNNGroup = int ( labels[0])
+    for i in range (2, 1000):
+        cosineSim = cosineSubroutine(article, i)
+        if (cosineSim > curMax):
+            curMax = cosineSim
+            curNNGroup = int( labels[i-1])
+    return curNNGroup
+
+# Iterates over all articles and increments the value of the cosineNN in a table
+# Prints the table as a heatmap
+def baselineCosineNN():
+    baselineCosineNN = np.zeros(shape=(20,20)) #table for cosine NN heatmap
+    errorCounter = 0
+    for i in range (1, 1000):
+        NN = cosineNN(i)
+        ownLabel = int (labels[i])
+        if (ownLabel == NN):
+            errorCounter += 1
+        baselineCosineNN[ownLabel - 1, NN - 1]  += 1                
+    makeHeatMap(baselineCosineNN, groups, 'Blues', 'baselineCosineNN.png')
+    print("Total numer of errors: " + errorCounter)
+
     
 global main
 global groups
