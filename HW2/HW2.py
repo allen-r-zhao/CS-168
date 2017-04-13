@@ -88,16 +88,21 @@ def L2Subroutine(article1, article2):
     diffTot = 0.0
     for i in range(len(set1[:,0])): #Compares all words in article1 with appropriate word in article2, if present
         freq1 = set1[i, 1]
-        freq2 = set2[set2[:,0] == set1[i,0],1]
+        freq2 = set2[set2[:,0] == set1[i,0], 1]
+        if not freq2:
+            freq2 = 0
+        else:
+            freq2 = freq2[0]
         diffTot += (freq1 - freq2)**2
-        set2[i, 2] = 1 #indicates in set2 that this word has already been compared
+        set1[i, 1] = -1 #indicates in set2 that this word has already been compared
     
     for i in range(len(set2[:, 0])): #iterates over all words in article2 that are not in article1
-        if (set2[i, 2] != 1):
+        freq1 = set1[set1[:,0] == set2[i,0],1]
+        freq2 = set2[i, 1]
+        if (freq1 != -1):
             diffTot += set2[i, 1] ** 2
-                   
     return (diffTot ** (0.5)) * -1.0 #returns negation of sqrt of diffTotal
-       
+    
 def cosineSubroutine(article1, article2):
     num = 0.0
     den1 = 0.0 
@@ -129,7 +134,7 @@ def jaccMaster():
     # Plug data as we go into dataJacc array
     cnt = 0
     for i in range(1000):
-        for j in range(i,1000):
+        for j in range(1000):
             temp = jaccSubroutine(i,j)
             dataJacc[int(labels[i])-1, int(labels[j])-1] += temp
             cnt += 1
@@ -140,17 +145,23 @@ def jaccMaster():
     makeHeatMap(dataJacc, groups, 'Blues', 'jaccMap.png')
 
 def L2Master():
-    print 'placeholder'
-
+    for i in range(1000):
+        for j in range(1000):
+            temp = L2Subroutine(i,j)
+            temp /= 50
+            dataL2[int(labels[i])-1, int(labels[j])-1] += temp
+    #print(dataCos)
+    # np.divide(dataCos, (50.0 ** 3))
+    makeHeatMap(dataL2, groups, 'Blues', 'cosMap.png')
 
 def cosineMaster():
-    cnt = 0
     for i in range(1000):
-        for j in range(i,1000):
+        for j in range(1000):
             temp = cosineSubroutine(i,j)
+            temp /= 50
             dataCos[int(labels[i])-1, int(labels[j])-1] += temp
-            cnt += 1
-    np.divide(dataCos, (50.0 ** 3))
+    #print(dataCos)
+    # np.divide(dataCos, (50.0 ** 3))
     makeHeatMap(dataCos, groups, 'Blues', 'cosMap.png')
 
 # Returns the category number of the article with the cosine similarity from the input article
@@ -173,11 +184,24 @@ def baselineCosineNN():
     for i in range (1, 1000):
         NN = cosineNN(i)
         ownLabel = int (labels[i])
-        if (ownLabel == NN):
+        if (ownLabel != NN):
             errorCounter += 1
         baselineCosineNN[ownLabel - 1, NN - 1]  += 1                
     makeHeatMap(baselineCosineNN, groups, 'Blues', 'baselineCosineNN.png')
-    print("Total numer of errors: " + errorCounter)
+    errorCounter /= 1000
+    print("Average classification error: ") 
+    print(errorCounter)
+
+def dimensionReduction():
+    dList = [10, 25, 50, 100]
+    for i in dList:
+        dimArray = np.zeros(shape=(129532,i),dtype=float)  # Main data table
+        for j in dimArray:
+            for k in j:
+                j[k] = np.random.normal(0, 1)
+                
+        print(dimArray)
+                           
 
     
 global main
@@ -197,5 +221,8 @@ dataL2 = np.zeros(shape=(20,20))   # Where the data for L2 heatmap will go
 dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
 divArr = np.full((20,20),2500.)
 
+dimensionReduction()
 #jaccMaster()
-cosineMaster()
+#L2Master()
+#cosineMaster()
+#baselineCosineNN()
