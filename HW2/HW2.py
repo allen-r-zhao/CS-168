@@ -135,13 +135,11 @@ def jaccMaster():
     cnt = 0
     for i in range(1000):
         for j in range(1000):
-            temp = jaccSubroutine(i,j)
-            dataJacc[int(labels[i])-1, int(labels[j])-1] += temp
+            dataJacc[int(labels[i])-1, int(labels[j])-1] += jaccSubroutine(i,j)/50
             cnt += 1
             if cnt > 5000:
                 print i,j
                 cnt = 0
-    np.divide(dataJacc,divArr)
     makeHeatMap(dataJacc, groups, 'Blues', 'jaccMap.png')
 
 def L2Master():
@@ -152,14 +150,19 @@ def L2Master():
             dataL2[int(labels[i])-1, int(labels[j])-1] += temp
     #print(dataCos)
     # np.divide(dataCos, (50.0 ** 3))
-    makeHeatMap(dataL2, groups, 'Blues', 'cosMap.png')
+    makeHeatMap(dataL2, groups, 'Blues', 'L2Map.png')
 
 def cosineMaster():
+    cnt = 0
     for i in range(1000):
         for j in range(1000):
             temp = cosineSubroutine(i,j)
             temp /= 50
             dataCos[int(labels[i])-1, int(labels[j])-1] += temp
+            cnt += 1
+            if cnt > 5000:
+                print i,j
+                cnt = 0
     #print(dataCos)
     # np.divide(dataCos, (50.0 ** 3))
     makeHeatMap(dataCos, groups, 'Blues', 'cosMap.png')
@@ -221,8 +224,8 @@ dataL2 = np.zeros(shape=(20,20))   # Where the data for L2 heatmap will go
 dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
 divArr = np.full((20,20),2500.)
 
-dimensionReduction()
-#jaccMaster()
+#dimensionReduction()
+jaccMaster()
 #L2Master()
 #cosineMaster()
 #baselineCosineNN()
