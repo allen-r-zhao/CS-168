@@ -10,6 +10,9 @@ import numpy as np
 import warnings
 import csv
 
+
+
+
 def makeHeatMap(data, names, color, outputFileName):
 	#to catch "falling back to Agg" warning
 	with warnings.catch_warnings():
@@ -174,6 +177,7 @@ def cosineNN(article):
         if (cosineSim > curMax):
             curMax = cosineSim
             curNNGroup = int( labels[i-1])
+    
     return curNNGroup
 
 # Iterates over all articles and increments the value of the cosineNN in a table
@@ -181,9 +185,9 @@ def cosineNN(article):
 def baselineCosineNN():
     baselineCosineNN = np.zeros(shape=(20,20)) #table for cosine NN heatmap
     errorCounter = 0.0
-    for i in range (1, 1000):
+    for i in range (1, len(main)):
         NN = cosineNN(i)
-        ownLabel = int (labels[i])
+        ownLabel = int (labels[i - 1])
         if (ownLabel != NN):
             errorCounter += 1
         baselineCosineNN[ownLabel - 1, NN - 1]  += 1.0
@@ -193,18 +197,18 @@ def baselineCosineNN():
     print("Average classification error: ") 
     print(errorCounter)
 
+#Dimension reduction main function. Constructs d X 129532 matrix to reduce the
+# main 3 X 129532 matrix to a matrix of size d X 3
 def dimensionReduction():
     dimArray = np.zeros(shape=(10, 129532),dtype=float)  # Main data table
     for j in dimArray:
         for k in j:
-            j[k] = np.random.normal(0, 1)
-    
-    main = np.dot(dimArray, main)
+            j[k] = np.random.normal(0, 1)          
+    temp = np.dot(dimArray, main)
+    global main 
+    main = temp
+    print(main)
     baselineCosineNN()
-    
-    
-                           
-
     
 global main
 global groups
@@ -214,17 +218,21 @@ global dataL2
 global Cos
 global divArr
 
-main = np.zeros(shape=(129532,3),dtype=int)  # Main data table
+main = np.zeros(shape=(129532,3),dtype=float)  # Main data table
 groups = ['0'] * 20    # List of group names
 labels = [0] * 1000    # List of labels for the articles
 importFiles()
 dataJacc = np.zeros(shape=(20,20))   # Where the data for Jaccard heatmap will go
 dataL2 = np.zeros(shape=(20,20))   # Where the data for L2 heatmap will go
 dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
-divArr = np.full((20,20),2500.)
+divArr = np.full((20,20),2500.)    
+                           
 
-#dimensionReduction()
+    
+
+
 #jaccMaster()
-L2Master()
+#L2Master()
 #cosineMaster()
 #baselineCosineNN()
+dimensionReduction()
