@@ -134,17 +134,19 @@ def jaccMaster():
     # Plug data as we go into dataJacc array
     cnt = 0
     for i in range(1000):
-        for j in range(1000):
-            dataJacc[int(labels[i])-1, int(labels[j])-1] += jaccSubroutine(i,j)/50
+        for j in range(i, 1000):
+            temp = jaccSubroutine(i,j)
+            dataJacc[int(labels[i])-1, int(labels[j])-1] += temp
             cnt += 1
             if cnt > 5000:
                 print i,j
                 cnt = 0
+    np.divide(dataJacc,divArr)
     makeHeatMap(dataJacc, groups, 'Blues', 'jaccMap.png')
 
 def L2Master():
     for i in range(1000):
-        for j in range(1000):
+        for j in range(i, 1000):
             temp = L2Subroutine(i,j)
             temp /= 50
             dataL2[int(labels[i])-1, int(labels[j])-1] += temp
@@ -153,16 +155,11 @@ def L2Master():
     makeHeatMap(dataL2, groups, 'Blues', 'L2Map.png')
 
 def cosineMaster():
-    cnt = 0
     for i in range(1000):
-        for j in range(1000):
+        for j in range(i, 1000):
             temp = cosineSubroutine(i,j)
             temp /= 50
             dataCos[int(labels[i])-1, int(labels[j])-1] += temp
-            cnt += 1
-            if cnt > 5000:
-                print i,j
-                cnt = 0
     #print(dataCos)
     # np.divide(dataCos, (50.0 ** 3))
     makeHeatMap(dataCos, groups, 'Blues', 'cosMap.png')
@@ -183,27 +180,29 @@ def cosineNN(article):
 # Prints the table as a heatmap
 def baselineCosineNN():
     baselineCosineNN = np.zeros(shape=(20,20)) #table for cosine NN heatmap
-    errorCounter = 0
+    errorCounter = 0.0
     for i in range (1, 1000):
         NN = cosineNN(i)
         ownLabel = int (labels[i])
         if (ownLabel != NN):
             errorCounter += 1
-        baselineCosineNN[ownLabel - 1, NN - 1]  += 1                
+        baselineCosineNN[ownLabel - 1, NN - 1]  += 1.0
+
     makeHeatMap(baselineCosineNN, groups, 'Blues', 'baselineCosineNN.png')
-    errorCounter /= 1000
+    errorCounter /= 1000.0
     print("Average classification error: ") 
     print(errorCounter)
 
 def dimensionReduction():
-    dList = [10, 25, 50, 100]
-    for i in dList:
-        dimArray = np.zeros(shape=(129532,i),dtype=float)  # Main data table
-        for j in dimArray:
-            for k in j:
-                j[k] = np.random.normal(0, 1)
-                
-        print(dimArray)
+    dimArray = np.zeros(shape=(10, 129532),dtype=float)  # Main data table
+    for j in dimArray:
+        for k in j:
+            j[k] = np.random.normal(0, 1)
+    
+    main = np.dot(dimArray, main)
+    baselineCosineNN()
+    
+    
                            
 
     
@@ -225,7 +224,7 @@ dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
 divArr = np.full((20,20),2500.)
 
 #dimensionReduction()
-jaccMaster()
-#L2Master()
+#jaccMaster()
+L2Master()
 #cosineMaster()
 #baselineCosineNN()
