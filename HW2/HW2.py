@@ -7,6 +7,7 @@ Created on Wed Apr 12 21:01:48 2017
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.sparse import csc_matrix
 import warnings
 import csv
 
@@ -67,7 +68,8 @@ def importFiles2():
         reader1 = csv.reader(a)
         rowNum = 0
         for row1 in reader1:
-            main2[row1[0] - 1, row1[1] - 1] = row1[2]
+            main2[int(row1[0]) - 1, int(row1[1] )- 1] = int(row1[2])
+        
     with open('groups.csv', 'rb') as b:
         reader2 = csv.reader(b)
         rowNum = 0
@@ -135,7 +137,7 @@ def cosineSubroutine(article1, article2):
     #Compares all words in article1 with appropriate word in article2
     #Note that unline for L2, for cosine whenever a word is present in only one of two articles 
     #this does not affect the similarity measure and can therefore be ignored
-
+    
     
     for i in range(len(set1[:,0])):
         freq1 =  set1[i, 1]
@@ -154,23 +156,17 @@ def cosineSubroutine(article1, article2):
         return (num / (den1 * den2))
     
 def cosineSubroutine2(article1, article2):
-    num = 0.0
-    den1 = 0.0 
-    den2 = 0.0 
-    #Compares all words in article1 with appropriate word in article2
-    #Note that unline for L2, for cosine whenever a word is present in only one of two articles 
-    #this does not affect the similarity measure and can therefore be ignored
-    for i in range(len(main2[article1])):
-        freq1 = main2[(article1 - 1), i-1]
-        freq2 = main2[(article2 - 1),i-1]
-        num += freq1 * freq2
-        den1 += freq1**2
-        den2 += freq2**2
-    
-    if ((den1 == 0.0) | (den2 == 0.0) | (num == 0.0)):
+    sparse = csc_matrix(main2)
+
+    list1 = sparse.getrow(article1-1)
+    list2 = sparse.getrow(article2-1)
+    nom = list1.dot(list2.transpose())[0, 0]
+    den1 = list1.dot(list1.transpose())[0,0]
+    den2 = list2.dot(list2.transpose())[0,0]
+    if ((den1 == 0.0) | (den2 == 0.0) | (nom == 0.0)):
         return 0
     else:
-        return (num / (den1 * den2))
+        return (nom / (den1 * den2))
  
 # Function that calls jaccSubroutine many times for each possible pair of articles in groups
 def jaccMaster():
@@ -254,6 +250,7 @@ def dimensionReduction():
     
 global main
 global main2
+global sparse
 global groups
 global labels
 global dataJacc
@@ -265,7 +262,7 @@ main = np.zeros(shape=(129532,3),dtype=float)  # Main data table
 main2 = np.zeros(shape=(1000,61067),dtype=float)  # Main data table
 groups = ['0'] * 20    # List of group names
 labels = [0] * 1000    # List of labels for the articles
-importFiles()
+importFiles2()
 dataJacc = np.zeros(shape=(20,20))   # Where the data for Jaccard heatmap will go
 dataL2 = np.zeros(shape=(20,20))   # Where the data for L2 heatmap will go
 dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
@@ -277,6 +274,6 @@ divArr = np.full((20,20),2500.)
 
 #jaccMaster()
 #L2Master()
-#cosineMaster()
-baselineCosineNN()
+cosineMaster()
+#baselineCosineNN()
 #dimensionReduction()
