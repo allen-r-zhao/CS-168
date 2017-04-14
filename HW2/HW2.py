@@ -68,7 +68,13 @@ def importFiles2():
         reader1 = csv.reader(a)
         rowNum = 0
         for row1 in reader1:
-            main2[int(row1[0]) - 1, int(row1[1] )- 1] = int(row1[2])
+            article = int(row1[0])
+            word = int(row1[1])
+            freq = int(row1[2])
+            main2[article - 1, word - 1] = freq
+    global sparse
+    sparse = csc_matrix(main2)
+     
         
     with open('groups.csv', 'rb') as b:
         reader2 = csv.reader(b)
@@ -128,6 +134,12 @@ def L2Subroutine(article1, article2):
             diffTot += set2[i, 1] ** 2
     return (diffTot ** (0.5)) * -1.0 #returns negation of sqrt of diffTotal
     
+def L2Subroutine2(article1, article2):
+    sparse = csc_matrix(main2)
+    minus = sparse.getrow(article1-1) - sparse.getrow(article2-1)
+    return (minus.dot(minus.transpose())[0, 0]) ** 0.5
+    
+    
 def cosineSubroutine(article1, article2):
     num = 0.0
     den1 = 0.0 
@@ -156,13 +168,12 @@ def cosineSubroutine(article1, article2):
         return (num / (den1 * den2))
     
 def cosineSubroutine2(article1, article2):
-    sparse = csc_matrix(main2)
-
+    #sparse = csc_matrix(main2)
     list1 = sparse.getrow(article1-1)
     list2 = sparse.getrow(article2-1)
     nom = list1.dot(list2.transpose())[0, 0]
-    den1 = list1.dot(list1.transpose())[0,0]
-    den2 = list2.dot(list2.transpose())[0,0]
+    den1 = list1.dot(list1.transpose())[0,0] ** 0.5
+    den2 = list2.dot(list2.transpose())[0,0] ** 0.5
     if ((den1 == 0.0) | (den2 == 0.0) | (nom == 0.0)):
         return 0
     else:
@@ -187,7 +198,7 @@ def jaccMaster():
 def L2Master():
     for i in range(1000):
         for j in range(i, 1000):
-            temp = L2Subroutine(i,j)
+            temp = L2Subroutine2(i,j)
             temp /= 50
             dataL2[int(labels[i])-1, int(labels[j])-1] += temp
     #print(dataCos)
@@ -195,32 +206,37 @@ def L2Master():
     makeHeatMap(dataL2, groups, 'Blues', 'L2Map.png')
 
 def cosineMaster():
+    counter = 0
     for i in range(1000):
         for j in range(i, 1000):
+            counter += 1
             temp = cosineSubroutine2(i,j)
-            temp /= 50
+            print counter
+            temp /= 2500
             dataCos[int(labels[i])-1, int(labels[j])-1] += temp
-    #print(dataCos)
-    # np.divide(dataCos, (50.0 ** 3))
     makeHeatMap(dataCos, groups, 'Blues', 'cosMap.png')
 
 # Returns the category number of the article with the cosine similarity from the input article
 # Input: article number
 def cosineNN(article):
-    curMax = cosineSubroutine2(article, 1)
-    #print(curMax)
-    curNNGroup = int ( labels[0])
+    if article == 1:
+        curMax = cosineSubroutine2(article, 1)
+        curNNGroup = int ( labels[1])
+    else:
+        curMax = cosineSubroutine2(article, 0)
+        curNNGroup = int ( labels[0])
     for i in range (2, 1001):
-        cosineSim = cosineSubroutine2(article, i)
-        if (cosineSim > curMax):
-            curMax = cosineSim
-            curNNGroup = int( labels[i-1])
+        if (article != i):
+            cosineSim = cosineSubroutine2(article, i)
+            if (cosineSim > curMax):
+                curMax = cosineSim
+                curNNGroup = int( labels[i-1])
     return (curNNGroup)
     return curNNGroup
 
 # Iterates over all articles and increments the value of the cosineNN in a table
 # Prints the table as a heatmap
-def baselineCosineNN():
+def baselineCosineNN(articleName):
     baselineCosineNN = np.zeros(shape=(20,20)) #table for cosine NN heatmap
     errorCounter = 0.0
     for i in range (1, 1000):
@@ -230,7 +246,7 @@ def baselineCosineNN():
             errorCounter += 1
         baselineCosineNN[ownLabel - 1, NN - 1]  += 1.0
 
-    makeHeatMap(baselineCosineNN, groups, 'Blues', 'baselineCosineNN.png')
+    makeHeatMap(baselineCosineNN, groups, 'Blues', articleName)
     errorCounter /= 1000.0
     print("Average classification error: ") 
     print(errorCounter)
@@ -238,15 +254,18 @@ def baselineCosineNN():
 #Dimension reduction main function. Constructs d X 129532 matrix to reduce the
 # main 3 X 129532 matrix to a matrix of size d X 3
 def dimensionReduction():
-    dimArray = np.zeros(shape=(61067, 10),dtype=float)  # Main data table
+    #sparse = csc_matrix(main2)
+    dimArray = np.zeros(shape=(61067, 50),dtype=float)  # Main data table
     for j in dimArray:
         for k in j:
             j[k] = np.random.normal(0, 1)          
-    temp = np.dot(main2, dimArray)
+    temp = sparse.dot(dimArray)
     global main 
     main = temp
     #print(main)
-    baselineCosineNN()
+    baselineCosineNN('dimRed50.png')
+
+
     
 global main
 global main2
@@ -271,9 +290,8 @@ divArr = np.full((20,20),2500.)
 
     
 
-
 #jaccMaster()
 #L2Master()
-cosineMaster()
-#baselineCosineNN()
-#dimensionReduction()
+#cosineMaster()
+#baselineCosineNN('baselineCosineNN.png')
+dimensionReduction()
