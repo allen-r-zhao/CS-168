@@ -62,6 +62,26 @@ def importFiles():
             labels[rowNum] = row3[0]
             rowNum += 1
 
+def importFiles2():
+    with open('data50.csv', 'rb') as a:
+        reader1 = csv.reader(a)
+        rowNum = 0
+        for row1 in reader1:
+            main2[row1[0] - 1, row1[1] - 1] = row1[2]
+    with open('groups.csv', 'rb') as b:
+        reader2 = csv.reader(b)
+        rowNum = 0
+        for row2 in reader2:
+            groups[rowNum] = row2[:]
+            rowNum += 1
+    with open('label.csv', 'rb') as c:
+        reader3 = csv.reader(c)
+        rowNum = 0
+        for row3 in reader3:
+            labels[rowNum] = row3[0]
+            rowNum += 1
+            
+    
 # Subroutine for Jaccard similarity; compares 2 articles
 # Inputs: article1, article2 are integer inputs (such as 1 or 3)
 def jaccSubroutine(article1, article2):
@@ -115,8 +135,7 @@ def cosineSubroutine(article1, article2):
     #Compares all words in article1 with appropriate word in article2
     #Note that unline for L2, for cosine whenever a word is present in only one of two articles 
     #this does not affect the similarity measure and can therefore be ignored
-    print(set1)
-    print(set2)
+
     
     for i in range(len(set1[:,0])):
         freq1 =  set1[i, 1]
@@ -125,6 +144,25 @@ def cosineSubroutine(article1, article2):
             freq2 = 0
         else:
             freq2 = freq2[0]
+        num += freq1 * freq2
+        den1 += freq1**2
+        den2 += freq2**2
+    
+    if ((den1 == 0.0) | (den2 == 0.0) | (num == 0.0)):
+        return 0
+    else:
+        return (num / (den1 * den2))
+    
+def cosineSubroutine2(article1, article2):
+    num = 0.0
+    den1 = 0.0 
+    den2 = 0.0 
+    #Compares all words in article1 with appropriate word in article2
+    #Note that unline for L2, for cosine whenever a word is present in only one of two articles 
+    #this does not affect the similarity measure and can therefore be ignored
+    for i in range(len(main2[article1])):
+        freq1 = main2[(article1 - 1), i-1]
+        freq2 = main2[(article2 - 1),i-1]
         num += freq1 * freq2
         den1 += freq1**2
         den2 += freq2**2
@@ -163,7 +201,7 @@ def L2Master():
 def cosineMaster():
     for i in range(1000):
         for j in range(i, 1000):
-            temp = cosineSubroutine(i,j)
+            temp = cosineSubroutine2(i,j)
             temp /= 50
             dataCos[int(labels[i])-1, int(labels[j])-1] += temp
     #print(dataCos)
@@ -173,11 +211,11 @@ def cosineMaster():
 # Returns the category number of the article with the cosine similarity from the input article
 # Input: article number
 def cosineNN(article):
-    curMax = cosineSubroutine(article, 1)
+    curMax = cosineSubroutine2(article, 1)
     #print(curMax)
     curNNGroup = int ( labels[0])
     for i in range (2, 1001):
-        cosineSim = cosineSubroutine(article, i)
+        cosineSim = cosineSubroutine2(article, i)
         if (cosineSim > curMax):
             curMax = cosineSim
             curNNGroup = int( labels[i-1])
@@ -204,17 +242,18 @@ def baselineCosineNN():
 #Dimension reduction main function. Constructs d X 129532 matrix to reduce the
 # main 3 X 129532 matrix to a matrix of size d X 3
 def dimensionReduction():
-    dimArray = np.zeros(shape=(100, 129532),dtype=float)  # Main data table
+    dimArray = np.zeros(shape=(61067, 10),dtype=float)  # Main data table
     for j in dimArray:
         for k in j:
             j[k] = np.random.normal(0, 1)          
-    temp = np.dot(dimArray, main)
+    temp = np.dot(main2, dimArray)
     global main 
     main = temp
     #print(main)
     baselineCosineNN()
     
 global main
+global main2
 global groups
 global labels
 global dataJacc
@@ -223,6 +262,7 @@ global Cos
 global divArr
 
 main = np.zeros(shape=(129532,3),dtype=float)  # Main data table
+main2 = np.zeros(shape=(1000,61067),dtype=float)  # Main data table
 groups = ['0'] * 20    # List of group names
 labels = [0] * 1000    # List of labels for the articles
 importFiles()
@@ -238,5 +278,5 @@ divArr = np.full((20,20),2500.)
 #jaccMaster()
 #L2Master()
 #cosineMaster()
-#baselineCosineNN()
-dimensionReduction()
+baselineCosineNN()
+#dimensionReduction()
