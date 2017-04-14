@@ -182,10 +182,10 @@ def cosineNN(article):
 
 # Iterates over all articles and increments the value of the cosineNN in a table
 # Prints the table as a heatmap
-def baselineCosineNN():
+def baselineCosineNN(inputArr):
     baselineCosineNN = np.zeros(shape=(20,20)) #table for cosine NN heatmap
     errorCounter = 0.0
-    for i in range (1, len(main)):
+    for i in range (1, len(inputArr)):
         NN = cosineNN(i)
         ownLabel = int (labels[i - 1])
         if (ownLabel != NN):
@@ -204,11 +204,8 @@ def dimensionReduction():
     for j in dimArray:
         for k in j:
             j[k] = np.random.normal(0, 1)          
-    temp = np.dot(dimArray, main)
-    global main 
-    main = temp
-    print(main)
-    baselineCosineNN()
+
+    baselineCosineNN(np.dot(dimArray, main))
     
 global main
 global groups
