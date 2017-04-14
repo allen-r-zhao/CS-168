@@ -115,6 +115,9 @@ def cosineSubroutine(article1, article2):
     #Compares all words in article1 with appropriate word in article2
     #Note that unline for L2, for cosine whenever a word is present in only one of two articles 
     #this does not affect the similarity measure and can therefore be ignored
+    print(set1)
+    print(set2)
+    
     for i in range(len(set1[:,0])):
         freq1 =  set1[i, 1]
         freq2 = set2[set2[:,0] == set1[i,0], 1]
@@ -171,13 +174,14 @@ def cosineMaster():
 # Input: article number
 def cosineNN(article):
     curMax = cosineSubroutine(article, 1)
+    #print(curMax)
     curNNGroup = int ( labels[0])
-    for i in range (2, 1000):
+    for i in range (2, 1001):
         cosineSim = cosineSubroutine(article, i)
         if (cosineSim > curMax):
             curMax = cosineSim
             curNNGroup = int( labels[i-1])
-    
+    return (curNNGroup)
     return curNNGroup
 
 # Iterates over all articles and increments the value of the cosineNN in a table
@@ -185,7 +189,7 @@ def cosineNN(article):
 def baselineCosineNN():
     baselineCosineNN = np.zeros(shape=(20,20)) #table for cosine NN heatmap
     errorCounter = 0.0
-    for i in range (1, len(main)):
+    for i in range (1, 1000):
         NN = cosineNN(i)
         ownLabel = int (labels[i - 1])
         if (ownLabel != NN):
@@ -200,14 +204,14 @@ def baselineCosineNN():
 #Dimension reduction main function. Constructs d X 129532 matrix to reduce the
 # main 3 X 129532 matrix to a matrix of size d X 3
 def dimensionReduction():
-    dimArray = np.zeros(shape=(10, 129532),dtype=float)  # Main data table
+    dimArray = np.zeros(shape=(100, 129532),dtype=float)  # Main data table
     for j in dimArray:
         for k in j:
             j[k] = np.random.normal(0, 1)          
     temp = np.dot(dimArray, main)
     global main 
     main = temp
-    print(main)
+    #print(main)
     baselineCosineNN()
     
 global main
