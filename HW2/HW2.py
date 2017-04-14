@@ -7,6 +7,7 @@ Created on Wed Apr 12 21:01:48 2017
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.sparse 
 from scipy.sparse import csc_matrix
 import warnings
 import csv
@@ -32,13 +33,16 @@ def makeHeatMap(data, names, color, outputFileName):
 		ax.invert_yaxis()
 		ax.xaxis.tick_top()
 
-		ax.set_xticklabels(range(1, 21))
+		ax.set_xticklabels(names)
 		ax.set_yticklabels(names)
+        
+        plt.xticks(rotation=90) 
+        plt.figure(figsize=(23,20))
+        #plt.tight_layout()
+        
 
-		plt.tight_layout()
-
-		plt.savefig(outputFileName, format = 'png')
-		plt.close()
+        plt.savefig(outputFileName, format = 'png')
+        plt.close()
         
 # Handles importing the provided datasets
 def importFiles():
@@ -135,9 +139,8 @@ def L2Subroutine(article1, article2):
     return (diffTot ** (0.5)) * -1.0 #returns negation of sqrt of diffTotal
     
 def L2Subroutine2(article1, article2):
-    sparse = csc_matrix(main2)
     minus = sparse.getrow(article1-1) - sparse.getrow(article2-1)
-    return (minus.dot(minus.transpose())[0, 0]) ** 0.5
+    return ((minus.dot(minus.transpose())[0, 0]) ** 0.5) * -1.0
     
     
 def cosineSubroutine(article1, article2):
@@ -183,29 +186,51 @@ def cosineSubroutine2(article1, article2):
 def jaccMaster():
     # Iterate over all pairs of articles between groups
     # Plug data as we go into dataJacc array
-    cnt = 0
+    importFiles()
     for i in range(1000):
         for j in range(i, 1000):
             temp = jaccSubroutine(i,j)
             dataJacc[int(labels[i])-1, int(labels[j])-1] += temp
-            cnt += 1
-            if cnt > 5000:
-                print i,j
-                cnt = 0
-    np.divide(dataJacc,divArr)
-    makeHeatMap(dataJacc, groups, 'Blues', 'jaccMap.png')
+            dataJacc[int(labels[j])-1, int(labels[i])-1] += temp
+    for i in range(20):
+        for j in range(20):
+            dataJacc[i,j] /= 2500
+    makeHeatMap(dataJacc, groups, 'Blues', 'jaccMap')
 
 def L2Master():
+    importFiles2()
+    counter = 0
     for i in range(1000):
         for j in range(i, 1000):
             temp = L2Subroutine2(i,j)
-            temp /= 50
+            temp /= 2500
             dataL2[int(labels[i])-1, int(labels[j])-1] += temp
+            dataL2[int(labels[j])-1, int(labels[i])-1] += temp
+            counter += 1
+            print counter
     #print(dataCos)
     # np.divide(dataCos, (50.0 ** 3))
-    makeHeatMap(dataL2, groups, 'Blues', 'L2Map.png')
+    makeHeatMap(dataL2, groups, 'Blues', 'L2Map')
 
 def cosineMaster():
+    importFiles()
+    cnt = 0
+    for i in range(1000):
+        for j in range(i, 1000):
+            if cnt > 1000:
+                print i,j
+                cnt = 0
+            cnt += 1
+            temp = cosineSubroutine(i,j)
+            dataCos[int(labels[i])-1, int(labels[j])-1] += temp
+            dataCos[int(labels[j])-1, int(labels[i])-1] += temp
+    for i in range(20):
+        for j in range(20):
+            dataCos[i,j] /= 2500
+    makeHeatMap(dataCos, groups, 'Blues', 'cosMap')
+
+def cosineMaster2():
+    importFiles2()
     counter = 0
     for i in range(1000):
         for j in range(i, 1000):
@@ -214,10 +239,13 @@ def cosineMaster():
             print counter
             temp /= 2500
             dataCos[int(labels[i])-1, int(labels[j])-1] += temp
-    makeHeatMap(dataCos, groups, 'Blues', 'cosMap.png')
+            dataCos[int(labels[j])-1, int(labels[i])-1] += temp
+    makeHeatMap(dataCos, groups, 'Blues', 'cosMap')
 
 # Returns the category number of the article with the cosine similarity from the input article
 # Input: article number
+
+"""
 def cosineNN(article):
     if article == 1:
         curMax = cosineSubroutine2(article, 1)
@@ -231,40 +259,102 @@ def cosineNN(article):
             if (cosineSim > curMax):
                 curMax = cosineSim
                 curNNGroup = int( labels[i-1])
-    return (curNNGroup)
     return curNNGroup
+"""
+
+def cosineNN2(article):
+    NList = np.zeros(shape=(1000,1),dtype=float)
+    for i in range (1, 1001):
+        if (article != i):
+            NList[i - 1] = cosineSubroutine2(article, i)
+        else:
+            NList[i - 1] = 0 
+    #print (NList[np.argmax(NList)])
+    return int (labels[np.argmax(NList)])
 
 # Iterates over all articles and increments the value of the cosineNN in a table
 # Prints the table as a heatmap
-def baselineCosineNN(articleName):
+def baselineCosineNN():
+    importFiles2()
     baselineCosineNN = np.zeros(shape=(20,20)) #table for cosine NN heatmap
     errorCounter = 0.0
-    for i in range (1, 1000):
-        NN = cosineNN(i)
+    counter = 0
+    for i in range (1, 1001):
+        counter += 1
+        print counter
+        NN = cosineNN2(i)
         ownLabel = int (labels[i - 1])
         if (ownLabel != NN):
             errorCounter += 1
         baselineCosineNN[ownLabel - 1, NN - 1]  += 1.0
 
-    makeHeatMap(baselineCosineNN, groups, 'Blues', articleName)
+    makeHeatMap(baselineCosineNN, groups, 'Blues', 'dimRed100.png')
+    #makeHeatMap(baselineCosineNN, groups, 'Blues', 'baselineCosineNN.png')
     errorCounter /= 1000.0
+    print ('baselineCosineNN')
     print("Average classification error: ") 
     print(errorCounter)
 
 #Dimension reduction main function. Constructs d X 129532 matrix to reduce the
 # main 3 X 129532 matrix to a matrix of size d X 3
 def dimensionReduction():
-    #sparse = csc_matrix(main2)
-    dimArray = np.zeros(shape=(61067, 50),dtype=float)  # Main data table
-    for j in dimArray:
-        for k in j:
-            j[k] = np.random.normal(0, 1)          
+    importFiles2()
+    dimArray = randomTable(61067, 100)
     temp = sparse.dot(dimArray)
     global main 
     main = temp
-    #print(main)
-    baselineCosineNN('dimRed50.png')
+    baselineCosineNN()
+    print 'dimRed'
 
+    array = np.zeros(shape=(x, y),dtype=float)  # Main data table
+    for j in array:
+        for k in j:
+            j[k] = np.random.normal(0, 1)  
+        print j
+
+    #print array[3, 100]
+    return array
+    
+def LSHMain():
+    importFiles2()
+    d = 5
+    LSHSetup(d)
+    for i in range(1):
+        vecI = sparse.getrow(i).transpose().toarray() #kx1 sparse vector with word frequencies of article i
+        for j in range(L):
+            #prodVec = sparse.getrow(i).dot(hashTableList[j].transpose())
+            #print vecI
+            print hashTableList[j][3, 100]
+            #prodVec = scipy.sparse.coo_matrix.dot(hashTableList[j], vecI)
+            prodVec = np.dot(hashTableList[j], vecI)
+            binvec = np.zeros(shape=(1,5),dtype=int)
+            print prodVec[0]
+            prodVec = scipy.sparse.coo_matrix(prodVec)
+            # from http://stackoverflow.com/questions/4319014/iterating-through-a-scipy-sparse-vector-or-matrix
+            for row,col,val in zip(prodVec.row, prodVec.col, prodVec.data):
+                #print row
+                if val <= 0:
+                    binvec[0, row] = 0
+                else:
+                    binvec[0, row] = 1
+                print "(%d, %d), %s" % (row, col ,val)
+            
+            #print binvec
+
+        
+
+
+
+# constructs a list of L dx61067 hashtables with values drawn randomly from a normal distr.
+# with mean 0 and var 1
+def LSHSetup(d):
+    for i in range (L):
+        #hashTableList[i] = scipy.sparse.coo_matrix(randomTable(d, 61067))
+        #print hashTableList[i].get_shape()
+        hashTableList[i] = randomTable(d, 61067)
+    
+    
+    
 
     
 global main
@@ -276,22 +366,25 @@ global dataJacc
 global dataL2
 global Cos
 global divArr
+global L
 
 main = np.zeros(shape=(129532,3),dtype=float)  # Main data table
 main2 = np.zeros(shape=(1000,61067),dtype=float)  # Main data table
 groups = ['0'] * 20    # List of group names
 labels = [0] * 1000    # List of labels for the articles
-importFiles2()
+#importFiles2()
 dataJacc = np.zeros(shape=(20,20))   # Where the data for Jaccard heatmap will go
 dataL2 = np.zeros(shape=(20,20))   # Where the data for L2 heatmap will go
 dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
-divArr = np.full((20,20),2500.)    
-                           
+divArr = np.full((20,20),2500.) 
+L = 1   
+hashTableList = [0]*L                          
 
     
 
 #jaccMaster()
 #L2Master()
-#cosineMaster()
-#baselineCosineNN('baselineCosineNN.png')
-dimensionReduction()
+#cosineMaster2()
+#baselineCosineNN()
+#dimensionReduction()
+LSHMain()
