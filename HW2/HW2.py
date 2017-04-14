@@ -14,7 +14,6 @@ import csv
 
 
 
-
 def makeHeatMap(data, names, color, outputFileName):
 	#to catch "falling back to Agg" warning
 	with warnings.catch_warnings():
@@ -319,44 +318,88 @@ def LSHMain():
     importFiles2()
     d = 5
     LSHSetup(d)
-    for i in range(1):
-        vecI = sparse.getrow(i).transpose().toarray() #kx1 sparse vector with word frequencies of article i
+    avError = 0
+    avS = 0
+    
+    for i in range (1000):
+        vecI = sparse.getrow(i).transpose().toarray()
+        S = []
+        NNVals = []
         for j in range(L):
-            #prodVec = sparse.getrow(i).dot(hashTableList[j].transpose())
-            #print vecI
-            print hashTableList[j][3, 100]
-            #prodVec = scipy.sparse.coo_matrix.dot(hashTableList[j], vecI)
-            prodVec = np.dot(hashTableList[j], vecI)
-            binvec = np.zeros(shape=(1,5),dtype=int)
-            print prodVec[0]
-            prodVec = scipy.sparse.coo_matrix(prodVec)
-            # from http://stackoverflow.com/questions/4319014/iterating-through-a-scipy-sparse-vector-or-matrix
-            for row,col,val in zip(prodVec.row, prodVec.col, prodVec.data):
-                #print row
-                if val <= 0:
-                    binvec[0, row] = 0
-                else:
-                    binvec[0, row] = 1
-                print "(%d, %d), %s" % (row, col ,val)
-            
-            #print binvec
-
+            binVal= findHashBucket(vecI, j, d)
+            for k in hashBucketList[j][binVal]:
+                if k != i:
+                    if k not in S:
+                        S.append(k)
+                        NNVals.append(cosineSubroutine2(i + 1, k))
+            NN = S[np.argmax(NNVals)]
+            NNlabel = labels[NN - 1]
+            if (NNlabel != labels[i-1]):
+                avError += 1
+            avS += len(S)
         
-
+    avError /= 1000
+    avS /= 1000
+    
+    print avS
+    print avError
+    
+            
+    
+    
+    
 
 
 # constructs a list of L dx61067 hashtables with values drawn randomly from a normal distr.
-# with mean 0 and var 1
+# with mean 0 and var 1. Populates the hashbuckets accordingly.
 def LSHSetup(d):
     for i in range (L):
-        #hashTableList[i] = scipy.sparse.coo_matrix(randomTable(d, 61067))
-        #print hashTableList[i].get_shape()
-        hashTableList[i] = randomTable(d, 61067)
+        hashTableList[i] = scipy.sparse.coo_matrix(randomTable(d, 61067))
+        bucketList = []
+        for i in range (2 ** d):
+            bucketList.append([])
+        hashBucketList.append(bucketList)
     
-    
-    
+    for i in range(1000):
+        vecI = sparse.getrow(i).transpose().toarray() #kx1 sparse vector with word frequencies of article i
+        for j in range(L):  
+            binVal= findHashBucket(vecI, j, d)
+            #print binVal
+            #print hashBucketList[j][binVal]
+            hashBucketList[j][binVal].append(i + 1)
+            #print i
+            #print hashBucketList[j]
 
+def findHashBucket(vector, function, d):
+    #prodVec = sparse.getrow(i).dot(hashTableList[j].transpose())
+    #print hashMatrix
+    #print hashMatrix.get_shape()
+    prodVec = scipy.sparse.coo_matrix.dot(hashTableList[function], vector)
+    #prodVec = np.dot(hashTableList[j], vecI)
+    binvec = [0] * d
+    prodVec = scipy.sparse.coo_matrix(prodVec)
+    # from http://stackoverflow.com/questions/4319014/iterating-through-a-scipy-sparse-vector-or-matrix
+    for row,col,val in zip(prodVec.row, prodVec.col, prodVec.data):
+        #print row
+        if val <= 0:
+            binvec[row] = 0
+        else:
+            binvec[row] = 1
+        #print "(%d, %d), %s" % (row, col ,val)
+    binVal = ""
+    for k in binvec:
+        binVal += str(k)
+    return int(binVal, 2)
     
+    
+def randomTable(row, col):
+    dimArray = np.zeros(shape=(row, col),dtype=float)  # Main data table
+    for i in range (row):
+        for j in range (col):
+            dimArray[i, j] = np.random.normal(0, 1)  
+            
+    return dimArray
+        
 global main
 global main2
 global sparse
@@ -367,6 +410,7 @@ global dataL2
 global Cos
 global divArr
 global L
+global hashBucketList
 
 main = np.zeros(shape=(129532,3),dtype=float)  # Main data table
 main2 = np.zeros(shape=(1000,61067),dtype=float)  # Main data table
@@ -377,8 +421,10 @@ dataJacc = np.zeros(shape=(20,20))   # Where the data for Jaccard heatmap will g
 dataL2 = np.zeros(shape=(20,20))   # Where the data for L2 heatmap will go
 dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
 divArr = np.full((20,20),2500.) 
-L = 1   
-hashTableList = [0]*L                          
+L = 10   
+hashTableList = [0]*L
+hashBucketList = []
+                          
 
     
 
