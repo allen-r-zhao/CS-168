@@ -32,15 +32,13 @@ def makeHeatMap(data, names, color, outputFileName):
 		ax.invert_yaxis()
 		ax.xaxis.tick_top()
 
-		ax.set_xticklabels(names)
+		ax.set_xticklabels(range(1, 21))
 		ax.set_yticklabels(names)
-		plt.xticks(rotation=90)
-		plt.figure(figsize=(23,20))
-		plt.savefig(outputFileName, format='png')
-		plt.close()
 
-		#plt.savefig(outputFileName, format='png')
-		#plt.close() 
+		plt.tight_layout()
+
+		plt.savefig(outputFileName, format = 'png')
+		plt.close()
         
 # Handles importing the provided datasets
 def importFiles():
@@ -89,7 +87,7 @@ def importFiles2():
         rowNum = 0
         for row3 in reader3:
             labels[rowNum] = row3[0]
-            rowNum += 1
+            #rowNum += 1
             
     
 # Subroutine for Jaccard similarity; compares 2 articles
@@ -274,10 +272,12 @@ def cosineNN2(article):
 # Iterates over all articles and increments the value of the cosineNN in a table
 # Prints the table as a heatmap
 def allCosineNN():
+    global baselineCosineNN
+    global errorCounter
     baselineCosineNN = np.zeros(shape=(20,20)) #table for cosine NN heatmap
     errorCounter = 0.0
     counter = 0
-    for i in range (1, 1001):
+    for i in range (1, 1000):
         counter += 1
         print counter
         NN = cosineNN2(i)
@@ -286,17 +286,19 @@ def allCosineNN():
             errorCounter += 1
         baselineCosineNN[ownLabel - 1, NN - 1]  += 1.0
     
-    for i in range (1000):
-        baselineCosineNN[i, i] = 0 #remove diagonal for contrast
+    #for i in range (20):
+     #   baselineCosineNN[i, i] = 0 #remove diagonal for contrast
     errorCounter /= 1000.0
     print ('baselineCosineNN')
     print("Average classification error: ") 
     print(errorCounter)
+    
+    
 
-def baselineCosineNN():
+def baselineCosineNN(filename):
      importFiles2()
      allCosineNN()
-     makeHeatMap(baselineCosineNN, groups, 'Blues', 'baselineCosineNN.png')
+     makeHeatMap(baselineCosineNN, groups, 'Blues', filename)
 
 #Dimension reduction main function. Constructs d X 129532 matrix to reduce the
 # main 3 X 129532 matrix to a matrix of size d X 3
@@ -307,19 +309,23 @@ def dimensionReduction(d):
     global main 
     main = temp
     allCosineNN()
-    filename = 'dimRed' + str(d) + '.png'
+    filename = 'dimRed2' + str(d) + '.png'
     print filename
     makeHeatMap(baselineCosineNN, groups, 'Blues', filename)
     
 def dimRedMain():
     dim = [10, 25, 50, 100]
+    global dimTable
+    dimTable = np.zeros(shape=(4,2),dtype=float)
     for i in dim:
         dimensionReduction(i)
+        dimTable[dCounter][0] = i
+        dimTable[dCounter][1] = errorCounter
+                
+    print dimTable
         
     
-def LSHMain():
-    importFiles2()
-    d = 5
+def LSH(d):
     LSHSetup(d)
     avError = 0.0
     avS = 0.0
@@ -336,20 +342,37 @@ def LSHMain():
                     if k not in S:
                         S.append(k)
                         NNVals.append(cosineSubroutine2(i + 1, k))
-            
-            NN = S[np.argmax(NNVals)]
-            NNlabel = labels[NN - 1]
-            if (NNlabel != labels[i-1]):
-                avError += 1
-            avS += len(S)
-            print (len(S))
         
-    avError /= (1000.0 * L 
-    avS /= (1000.0 * L)
+        #NN = S[np.argmax(NNVals)]
+        #NNlabel = labels[NN - 1]
+        #if (NNlabel != labels[i-1]):
+         #   avError += 1
+        avS += len(S)
+        print (len(S))
+        
+    avError /= (1000.0) 
+    avS /= (1000.0)
     
-    print 'Average S-size: ' + str(avS)
-    print 'Average Error: ' + str(avError)
+    LSHScatterX.append(avError)
+    LSHScatterY.append(avS)
     
+    #print 'Average S-size: ' + str(avS)
+    #print 'Average Error: ' + str(avError)
+    
+def LSHMain():
+    importFiles2()
+    for d in range (5, 21):
+        LSH(d)
+    scatterPlot(LSHScatterX, LSHScatterY, 'Average Error', 'Average size of $S_q$', 'LSHTotal2.png')
+    
+    
+def scatterPlot(XArray, YArray, XLabel, YLabel, outputFileName):
+    plt.xlabel(XLabel)
+    plt.ylabel(YLabel)
+    plt.plot(XArray, YArray, 'bo')
+    
+    plt.savefig(outputFileName, format = 'png')
+    plt.close()
             
     
     
@@ -368,11 +391,16 @@ def LSHSetup(d):
     
     for i in range(1000):
         vecI = sparse.getrow(i).transpose().toarray() #kx1 sparse vector with word frequencies of article i
-        for j in range(L):  
-            binVal= findHashBucket(vecI, j, d)
+        for j in range(61, L):  
+            #binVal= findHashBucket(vecI, j, d)
             #print binVal
             #print hashBucketList[j][binVal]
-            hashBucketList[j][binVal].append(i + 1)
+            print d
+            print j
+            print binVal
+            max = (2**d) - 1
+            hashBucketList[j][max].append(i + 1)
+            #hashBucketList[j][binVal].append(i + 1)
             #print i
             #print hashBucketList[j]
 
@@ -417,6 +445,9 @@ global Cos
 global divArr
 global L
 global hashBucketList
+global LSHScatterX
+global LSHScatterY
+global dCounter
 
 main = np.zeros(shape=(129532,3),dtype=float)  # Main data table
 main2 = np.zeros(shape=(1000,61067),dtype=float)  # Main data table
@@ -426,9 +457,12 @@ dataJacc = np.zeros(shape=(20,20))   # Where the data for Jaccard heatmap will g
 dataL2 = np.zeros(shape=(20,20))   # Where the data for L2 heatmap will go
 dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
 divArr = np.full((20,20),2500.) 
-L = 5   
+L = 128
 hashTableList = [0]*L
 hashBucketList = []
+LSHScatterX = []
+LSHScatterY= []
+dCounter = 0
                           
 
     
@@ -436,7 +470,7 @@ hashBucketList = []
 #jaccMaster()
 #L2Master()
 #cosineMaster2()
-baselineCosineNN()
-#dimensionReduction(100)
+#baselineCosineNN('baselineCosineNN1.png')
+dimensionReduction(100)
 #dimRedMain()
 #LSHMain()
