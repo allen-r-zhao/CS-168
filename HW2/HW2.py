@@ -7,7 +7,8 @@ Created on Wed Apr 12 21:01:48 2017
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.sparse 
+import scipy
+from scipy.spatial import distance
 from scipy.sparse import csc_matrix
 import warnings
 import csv
@@ -32,10 +33,12 @@ def makeHeatMap(data, names, color, outputFileName):
 		ax.invert_yaxis()
 		ax.xaxis.tick_top()
 
-		ax.set_xticklabels(range(1, 21))
+		ax.set_xticklabels(names)
 		ax.set_yticklabels(names)
-
-		plt.tight_layout()
+		plt.xticks(rotation=90)
+		plt.figure(figsize=(23,20))
+      
+		#plt.tight_layout()
 
 		plt.savefig(outputFileName, format = 'png')
 		plt.close()
@@ -87,7 +90,7 @@ def importFiles2():
         rowNum = 0
         for row3 in reader3:
             labels[rowNum] = row3[0]
-            #rowNum += 1
+            rowNum += 1
             
     
 # Subroutine for Jaccard similarity; compares 2 articles
@@ -194,7 +197,6 @@ def jaccMaster():
     makeHeatMap(dataJacc, groups, 'Blues', 'jaccMap.png')
 
 def L2Master():
-    importFiles2()
     counter = 0
     for i in range(1000):
         for j in range(i, 1000):
@@ -207,6 +209,41 @@ def L2Master():
     #print(dataCos)
     # np.divide(dataCos, (50.0 ** 3))
     makeHeatMap(dataL2, groups, 'Blues', 'L2Map.png')
+
+def scipyCosine():
+    global cosineResult
+    cosineResult = scipy.spatial.distance.pdist(main2, 'cosine')
+    cosineResult = scipy.spatial.distance.squareform(cosineResult)
+    #print result
+    for i in range(1000):
+        for j in range(1000):
+            dist = 1 - cosineResult[i,j]
+            dataCos[int(labels[i])-1, int(labels[j])-1] += dist / 2500
+            #dataCos[int(labels[j])-1, int(labels[i])-1] += main2[j, i]
+    makeHeatMap(dataCos, groups, 'Blues', 'scipyCos3.png')
+    
+def scipyJacc():
+    result = scipy.spatial.distance.pdist(main2, 'jaccard')
+    result = scipy.spatial.distance.squareform(result)
+    #print result
+    for i in range(1000):
+        for j in range(1000):
+            dist = (1 - result[i,j]) /4
+            dataJacc[int(labels[i])-1, int(labels[j])-1] += dist / 2500
+    makeHeatMap(dataJacc, groups, 'Blues', 'scipy2Jaccard.png')
+
+def scipyL2():
+    importFiles2()
+    result = scipy.spatial.distance.pdist(main2, 'sqeuclidean')
+    result = scipy.spatial.distance.squareform(result)
+    #print result
+    for i in range(1000):
+        for j in range(1000):
+            dist =  - 1 * (result[i,j] ** 0.5)
+            dataL2[int(labels[i])-1, int(labels[j])-1] += dist / 2500
+            #dataCos[int(labels[j])-1, int(labels[i])-1] += main2[j, i]
+    makeHeatMap(dataL2, groups, 'Blues', 'scipy2L2.png')
+
 
 def cosineMaster():
     importFiles()
@@ -293,12 +330,42 @@ def allCosineNN():
     print("Average classification error: ") 
     print(errorCounter)
     
-    
+def scipyNN():
+    scipyCosine()
+    global baselineCosineNN
+    global errorCounter
+    baselineCosineNN = np.zeros(shape=(20,20)) #table for cosine NN heatmap
+    errorCounter = 0.0
+    counter = 0
+    #vec = cosineResult[10]
+    #print vec.shape
+    for i in range (1000):
+        vector = [0] * 1000
+        for j in range (1000):
+                if i != j:
+                    vector[j] = 1 - cosineResult[i, j]
+        #vector = cosineResult[i]
+        #vector[i] = 0
+        #NN = np.argmax(vector)
+        #print NN
+        groupNN = int (labels[np.argmax(vector)])
+        owngroup = int(labels[i])
+        if groupNN != owngroup:
+            errorCounter += 1
+        
+        baselineCosineNN[owngroup - 1, groupNN - 1] += 1
+    #makeHeatMap(baselineCosineNN, groups, 'Blues', filename)
+    #print("Average classification error: " + str(errorCounter/1000)) 
+        
+def scipybaselineNNMaster(filename):
+    scipyNN()
+    makeHeatMap(baselineCosineNN, groups, 'Blues', filename)
+    print("Average classification error: " + str(errorCounter/1000)) 
 
 def baselineCosineNN(filename):
-     importFiles2()
-     allCosineNN()
-     makeHeatMap(baselineCosineNN, groups, 'Blues', filename)
+    importFiles2()
+    allCosineNN()
+    makeHeatMap(baselineCosineNN, groups, 'Blues', filename)
 
 #Dimension reduction main function. Constructs d X 129532 matrix to reduce the
 # main 3 X 129532 matrix to a matrix of size d X 3
@@ -313,58 +380,76 @@ def dimensionReduction(d):
     print filename
     makeHeatMap(baselineCosineNN, groups, 'Blues', filename)
     
+def scipyDimensionReduction(d):
+    dimArray = randomTable(61067, d)
+    global main2
+    main2 = sparse.dot(dimArray)
+    scipyNN()
+    filename = 'scipyDimRed' + str(d) + '.png'
+    print filename
+    makeHeatMap(baselineCosineNN, groups, 'Blues', filename)
+    
 def dimRedMain():
     dim = [10, 25, 50, 100]
     global dimTable
     dimTable = np.zeros(shape=(4,2),dtype=float)
+    counter = 0
     for i in dim:
-        dimensionReduction(i)
-        dimTable[dCounter][0] = i
-        dimTable[dCounter][1] = errorCounter
-                
+        scipyDimensionReduction(i)
+        dimTable[counter][0] = i
+        dimTable[counter][1] = errorCounter / 1000
+        counter += 1
     print dimTable
         
     
 def LSH(d):
     LSHSetup(d)
+    scipyCosine()
+
     avError = 0.0
     avS = 0.0
-    
+    print len(hashBucketList[0])
+    print d
+
     for i in range (1000):
-        print i + 1
-        vecI = sparse.getrow(i).transpose().toarray()
+        vecI = sparse.getrow(i).transpose().toarray().flatten()
         S = []
         NNVals = []
         for j in range(L):
-            binVal= findHashBucket(vecI, j, d)
+            binVal = findHashBucket(vecI, j, d)
             for k in hashBucketList[j][binVal]:
-                if k != i + 1:
-                    if k not in S:
-                        S.append(k)
-                        NNVals.append(cosineSubroutine2(i + 1, k))
-        
-        #NN = S[np.argmax(NNVals)]
-        #NNlabel = labels[NN - 1]
-        #if (NNlabel != labels[i-1]):
-         #   avError += 1
-        avS += len(S)
-        print (len(S))
+                if ((k != i + 1) & (k not in S)):
+                    S.append(k)
+                    NNVals.append(cosineResult[i, k-1])
+        if not S:
+            avError += 1
+        else:
+            NN = S[np.argmax(NNVals)]
+            NNlabel = labels[NN - 1]
+            if (NNlabel != labels[i-1]):
+                avError += 1
+                avS += len(S)
         
     avError /= (1000.0) 
     avS /= (1000.0)
     
     LSHScatterX.append(avError)
     LSHScatterY.append(avS)
-    
+    LSHResultTable[d-5, 0] = d
+    LSHResultTable[d-5, 1] = avError      
+    LSHResultTable[d-5, 2] = avS
     #print 'Average S-size: ' + str(avS)
     #print 'Average Error: ' + str(avError)
     
 def LSHMain():
     importFiles2()
+    global LSHResultTable
+    LSHResultTable = np.zeros(shape=(16,3),dtype=float)
+    scipyCosine()
     for d in range (5, 21):
         LSH(d)
     scatterPlot(LSHScatterX, LSHScatterY, 'Average Error', 'Average size of $S_q$', 'LSHTotal2.png')
-    
+    print LSHResultTable
     
 def scatterPlot(XArray, YArray, XLabel, YLabel, outputFileName):
     plt.xlabel(XLabel)
@@ -374,7 +459,8 @@ def scatterPlot(XArray, YArray, XLabel, YLabel, outputFileName):
     plt.savefig(outputFileName, format = 'png')
     plt.close()
             
-    
+
+        
     
     
 
@@ -382,46 +468,64 @@ def scatterPlot(XArray, YArray, XLabel, YLabel, outputFileName):
 # constructs a list of L dx61067 hashtables with values drawn randomly from a normal distr.
 # with mean 0 and var 1. Populates the hashbuckets accordingly.
 def LSHSetup(d):
+    global hashTableList
+    global hashBucketList
+    hashTableList = [0]*L
+    hashBucketList = []
+    
     for i in range (L):
         hashTableList[i] = scipy.sparse.coo_matrix(randomTable(d, 61067))
         bucketList = []
         for i in range (2 ** d):
-            bucketList.append([])
+            bucketList.append([])                
         hashBucketList.append(bucketList)
     
     for i in range(1000):
-        vecI = sparse.getrow(i).transpose().toarray() #kx1 sparse vector with word frequencies of article i
-        for j in range(61, L):  
-            #binVal= findHashBucket(vecI, j, d)
+        vecI = sparse.getrow(i).transpose().toarray().flatten() #kx1 sparse vector with word frequencies of article                             
+        for j in range(L):  
+            binVal = findHashBucket(vecI, j, d)
             #print binVal
             #print hashBucketList[j][binVal]
-            print d
-            print j
-            print binVal
-            max = (2**d) - 1
-            hashBucketList[j][max].append(i + 1)
+            #print d
+            #print j
+            #print binVal
+            #max = (2**d) - 1
+            hashBucketList[j][binVal].append(i + 1)
+                #print str(j)
+                #print str(binVal)
             #hashBucketList[j][binVal].append(i + 1)
             #print i
             #print hashBucketList[j]
-
+    
 def findHashBucket(vector, function, d):
     #prodVec = sparse.getrow(i).dot(hashTableList[j].transpose())
     #print hashMatrix
     #print hashMatrix.get_shape()
     prodVec = scipy.sparse.coo_matrix.dot(hashTableList[function], vector)
-    #prodVec = np.dot(hashTableList[j], vecI)
-    binvec = [0] * d
-    prodVec = scipy.sparse.coo_matrix(prodVec)
-    # from http://stackoverflow.com/questions/4319014/iterating-through-a-scipy-sparse-vector-or-matrix
-    for row,col,val in zip(prodVec.row, prodVec.col, prodVec.data):
-        #print row
-        if val <= 0:
-            binvec[row] = 0
+    #print prodVec
+    binVec = [0] * d
+    if (len(prodVec) > d):
+        print len(prodVec)
+        sys.exit()
+    for i in range (d):
+        if prodVec[i] <= 0:
+            binVec[i] = 0
         else:
-            binvec[row] = 1
+            binVec[i] = 1
+    #prodVec = np.dot(hashTableList[j], vecI)
+    #print vector
+    #binvec = [0] * d
+    #prodVec = scipy.sparse.coo_matrix(prodVec)
+    # from http://stackoverflow.com/questions/4319014/iterating-through-a-scipy-sparse-vector-or-matrix
+    #for row,col,val in zip(prodVec.row, prodVec.col, prodVec.data):
+        #print row
+      #  if val <= 0:
+       #     binvec[row] = 0
+       # else:
+       #     binvec[row] = 1
         #print "(%d, %d), %s" % (row, col ,val)
     binVal = ""
-    for k in binvec:
+    for k in binVec:
         binVal += str(k)
     return int(binVal, 2)
     
@@ -458,19 +562,30 @@ dataL2 = np.zeros(shape=(20,20))   # Where the data for L2 heatmap will go
 dataCos = np.zeros(shape=(20,20))   # Where the data for Cosine heatmap will go
 divArr = np.full((20,20),2500.) 
 L = 128
-hashTableList = [0]*L
-hashBucketList = []
+
 LSHScatterX = []
 LSHScatterY= []
 dCounter = 0
-                          
+importFiles2()
+                      
 
-    
 
 #jaccMaster()
 #L2Master()
 #cosineMaster2()
 #baselineCosineNN('baselineCosineNN1.png')
-dimensionReduction(100)
+#dimensionReduction(100)
+#dimRedMain()
+#LSHMain()
+#LSH(5)
+
+#LSHSetup(15)
+
+#scipyCosine()
+#scipyJacc()
+#scipyL2()
+
+scipybaselineNNMaster('scipyNN.png')
+#scipyDimensionReduction(10)
 #dimRedMain()
 #LSHMain()
